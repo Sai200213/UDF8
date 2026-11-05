@@ -35,7 +35,20 @@ export const db = initializeFirestore(app, {
     experimentalAutoDetectLongPolling: true,
 });
 export const storage = getStorage(app);
-export const functions = getFunctions(app);
+
+// SECURITY: Route Cloud Function calls through the current custom domain (/api)
+// in production so that traffic passes through Cloudflare WAF, rate limits, and DDoS protection.
+// In local dev (localhost), fallback to direct 'us-central1' region.
+const isLocalhost = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const functionsCustomDomain = (typeof window !== 'undefined' && !isLocalhost)
+    ? `${window.location.origin}/api`
+    : undefined;
+
+export const functions = functionsCustomDomain
+    ? getFunctions(app, functionsCustomDomain)
+    : getFunctions(app, 'us-central1');
 
 // Initialize Firebase App Check with reCAPTCHA Enterprise (IMP-5)
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, AppCheck } from 'firebase/app-check';

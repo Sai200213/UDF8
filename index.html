@@ -6,6 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1e3a8a">
 
+  <!-- SECURITY: Canonical Origin Enforcement to prevent Cloudflare Bypass (.web.app / .firebaseapp.com) -->
+  <script>
+    (function () {
+      try {
+        var h = window.location.hostname;
+        if (h && (h.indexOf('.web.app') !== -1 || h.indexOf('.firebaseapp.com') !== -1)) {
+          var targetDomain = 'udfonline.in';
+          if (h.indexOf('-admin') !== -1) {
+            targetDomain = 'admin.udfonline.in';
+          } else if (h.indexOf('-employee') !== -1) {
+            targetDomain = 'employee.udfonline.in';
+          }
+          window.location.replace('https://' + targetDomain + window.location.pathname + window.location.search + window.location.hash);
+        }
+      } catch (e) { }
+    })();
+  </script>
+
   <!-- SEO Meta Tags -->
   <title>Unique Delta Force Pvt Ltd | Security Services & HR Management Portal</title>
   <meta name="description"

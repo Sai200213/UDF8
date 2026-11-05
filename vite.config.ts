@@ -60,7 +60,6 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           clientsClaim: true,
           navigateFallbackDenylist: [
-            /^\/ads\.txt$/,
             /^\/robots\.txt$/,
             /^\/sitemap\.xml$/,
             /^\/llms\.txt$/,

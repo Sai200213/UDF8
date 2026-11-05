@@ -26,8 +26,33 @@ const verifyPassword = async (plainText, hash) => {
     return await bcrypt.compare(plainText, hash);
 };
 
+// STRICT CORS ORIGIN WHITELIST
+// Prevents cross-origin malicious execution from unauthorized domains.
+const ALLOWED_CORS_ORIGINS = [
+    'https://udfonline.in',
+    'https://www.udfonline.in',
+    'https://admin.udfonline.in',
+    'https://employee.udfonline.in',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost',
+    'capacitor://localhost'
+];
+
+/**
+ * Secure wrapper around functions.https.onCall enforcing the strict CORS origin whitelist.
+ */
+const secureOnCall = (optsOrHandler, maybeHandler) => {
+    const opts = typeof optsOrHandler === 'function' ? {} : (optsOrHandler || {});
+    const handler = typeof optsOrHandler === 'function' ? optsOrHandler : maybeHandler;
+    return functions.https.onCall({
+        cors: ALLOWED_CORS_ORIGINS,
+        ...opts
+    }, handler);
+};
+
 // Secure server-side password hashing using bcrypt (cost 12)
-exports.hashCandidatePasswordServer = functions.https.onCall(async (request) => {
+exports.hashCandidatePasswordServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -44,7 +69,7 @@ exports.hashCandidatePasswordServer = functions.https.onCall(async (request) => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Check global uniqueness across all identity collections
-exports.checkGlobalUniqueness = functions.https.onCall(async (request) => {
+exports.checkGlobalUniqueness = secureOnCall(async (request) => {
     // Only authenticated users can check uniqueness (prevents public scraping)
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Verification rejected.');
@@ -142,7 +167,7 @@ exports.checkGlobalUniqueness = functions.https.onCall(async (request) => {
 });
 
 // Create a staff user
-exports.createStaffUser = functions.https.onCall(async (request) => {
+exports.createStaffUser = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -213,7 +238,7 @@ exports.createStaffUser = functions.https.onCall(async (request) => {
 });
 
 // Delete a staff user
-exports.deleteStaffUser = functions.https.onCall(async (request) => {
+exports.deleteStaffUser = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -265,7 +290,7 @@ exports.deleteStaffUser = functions.https.onCall(async (request) => {
 });
 
 // Toggle staff user status (isDisabled status synced to Firebase Auth)
-exports.setStaffUserStatus = functions.https.onCall(async (request) => {
+exports.setStaffUserStatus = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -305,7 +330,7 @@ exports.setStaffUserStatus = functions.https.onCall(async (request) => {
 });
 
 // Reset staff user password directly
-exports.resetStaffUserPassword = functions.https.onCall(async (request) => {
+exports.resetStaffUserPassword = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -412,7 +437,7 @@ async function clearClaimDailyAttempts(db, employeeId) {
 // Protects strict Firestore rules by standardizing request.auth.uid to Employee ID.
 // ─────────────────────────────────────────────────────────────────────────────
 
-exports.employeeGoogleLogin = functions.https.onCall(async (request) => {
+exports.employeeGoogleLogin = secureOnCall(async (request) => {
     const { idToken } = request.data;
     if (!idToken) throw new functions.https.HttpsError('invalid-argument', 'Missing Google idToken');
 
@@ -587,7 +612,7 @@ exports.employeeGoogleLogin = functions.https.onCall(async (request) => {
 // Replaces anonymous auth with a stable, persistent Firebase session.
 // ─────────────────────────────────────────────────────────────────────────────
 
-exports.employeeLogin = functions.https.onCall(async (request) => {
+exports.employeeLogin = secureOnCall(async (request) => {
     let { employeeId, password } = request.data;
     
     // Normalize Employee ID to uppercase for case-insensitive lookup
@@ -765,7 +790,7 @@ exports.employeeLogin = functions.https.onCall(async (request) => {
 });
 
 // 1. Verify and Reset Password (Forgot Password flow)
-exports.verifyAndResetEmployeePassword = functions.https.onCall(async (request) => {
+exports.verifyAndResetEmployeePassword = secureOnCall(async (request) => {
     let { employeeId, verificationDetails, newPassword } = request.data;
     
     // Normalize Employee ID to uppercase for case-insensitive lookup
@@ -924,7 +949,7 @@ exports.verifyAndResetEmployeePassword = functions.https.onCall(async (request) 
 });
 
 // 2. Change Password (Authenticated flow)
-exports.changeEmployeePassword = functions.https.onCall(async (request) => {
+exports.changeEmployeePassword = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -1013,7 +1038,7 @@ exports.changeEmployeePassword = functions.https.onCall(async (request) => {
 });
 
 // 3. Link Google Account
-exports.linkEmployeeGoogleAccount = functions.https.onCall(async (request) => {
+exports.linkEmployeeGoogleAccount = secureOnCall(async (request) => {
     let { employeeId, currentPassword, googleUid, email, idToken } = request.data || {};
     
     // Normalize Employee ID to uppercase for case-insensitive lookup
@@ -1158,7 +1183,7 @@ exports.linkEmployeeGoogleAccount = functions.https.onCall(async (request) => {
 });
 
 // 4. Verify Password (e.g. before showing Google popup)
-exports.verifyEmployeePassword = functions.https.onCall(async (request) => {
+exports.verifyEmployeePassword = secureOnCall(async (request) => {
     let { employeeId, password } = request.data;
     
     // Normalize Employee ID to uppercase for case-insensitive lookup
@@ -1220,7 +1245,7 @@ exports.verifyEmployeePassword = functions.https.onCall(async (request) => {
 });
 
 // 5. Unlink Google Account
-exports.unlinkEmployeeGoogleAccount = functions.https.onCall(async (request) => {
+exports.unlinkEmployeeGoogleAccount = secureOnCall(async (request) => {
     // 1. Security Gate: Must be an authenticated session
     if (!request.auth || !request.auth.uid) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged into your account to unlink Google.');
@@ -1293,7 +1318,7 @@ exports.unlinkEmployeeGoogleAccount = functions.https.onCall(async (request) => 
 
 // 5b. Setup Initial Password (replaces client-side SHA-256 hashing)
 // Called when employee sets their first password during account setup
-exports.setupEmployeePassword = functions.https.onCall(async (request) => {
+exports.setupEmployeePassword = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -1385,7 +1410,7 @@ exports.setupEmployeePassword = functions.https.onCall(async (request) => {
     }
 });
 
-exports.selfLinkGoogleAccount = functions.https.onCall(async (request) => {
+exports.selfLinkGoogleAccount = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -1533,7 +1558,7 @@ exports.selfLinkGoogleAccount = functions.https.onCall(async (request) => {
 });
 
 // 6. Admin Control Employee Auth
-exports.adminControlEmployeeAuth = functions.https.onCall(async (request) => {
+exports.adminControlEmployeeAuth = secureOnCall(async (request) => {
     if (!request.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
 
     const db = admin.firestore();
@@ -1689,7 +1714,7 @@ exports.adminControlEmployeeAuth = functions.https.onCall(async (request) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Generate a 15-minute temporary signed URL for a given Firebase Storage path
-exports.getSecureDocumentURL = functions.https.onCall(async (request) => {
+exports.getSecureDocumentURL = secureOnCall(async (request) => {
     // SECURITY: Must be authenticated
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to access secure documents.');
@@ -1922,7 +1947,7 @@ exports.getSecureDocumentURL = functions.https.onCall(async (request) => {
  * Generates signed URLs for up to 30 storage paths in a single round-trip.
  * Validates ownership once per prefix / target ID instead of 10-15 parallel calls.
  */
-exports.getBatchSignedViewUrls = functions.https.onCall(async (request) => {
+exports.getBatchSignedViewUrls = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to access secure documents.');
     }
@@ -2080,7 +2105,7 @@ exports.getBatchSignedViewUrls = functions.https.onCall(async (request) => {
  * Moves a folder and its contents in Firebase Storage.
  * Used during onboarding approval to move files from temporary to permanent location.
  */
-exports.moveStorageFolder = functions.https.onCall(async (request) => {
+exports.moveStorageFolder = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
@@ -2183,7 +2208,7 @@ exports.moveStorageFolder = functions.https.onCall(async (request) => {
  * Securely deletes a file or folder in Firebase Storage on the backend.
  * Bypasses client-side storage.rules deny-all while verifying caller permissions.
  */
-exports.deleteStoragePath = functions.https.onCall(async (request) => {
+exports.deleteStoragePath = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
     }
@@ -2313,7 +2338,7 @@ exports.deleteStoragePath = functions.https.onCall(async (request) => {
  * getStorageFolderSizeServer
  * Computes folder storage consumption on backend using Admin SDK.
  */
-exports.getStorageFolderSizeServer = functions.https.onCall(async (request) => {
+exports.getStorageFolderSizeServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
     }
@@ -2689,7 +2714,7 @@ exports.processNoticePeriodExitsCron = onSchedule({
  * Input: { employeeId: string, verificationData: object }
  * Returns: { success: true, submissionId?: string, employeeName: string, legacyData: object }
  */
-exports.claimEmployeeProfile = functions.https.onCall(async (request) => {
+exports.claimEmployeeProfile = secureOnCall(async (request) => {
     const { employeeId, verificationData } = request.data || {};
     const db = admin.firestore();
 
@@ -2860,7 +2885,7 @@ exports.claimEmployeeProfile = functions.https.onCall(async (request) => {
 // SYSTEM USAGE & MONITORING API
 // ─────────────────────────────────────────────────────────────────────────────
 
-exports.getSystemMetrics = functions.https.onCall(async (request) => {
+exports.getSystemMetrics = secureOnCall(async (request) => {
     // Only allow authenticated users
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Access denied.');
@@ -3017,7 +3042,7 @@ function checkLookupRateLimit(ip) {
 }
 
 // Secure check for employee status during Forgot Password flow with IP rate-limiting (Finding 3)
-exports.checkForgotPasswordEmployeeStatus = functions.https.onCall(async (request) => {
+exports.checkForgotPasswordEmployeeStatus = secureOnCall(async (request) => {
     const rawReq = request.rawRequest;
     const clientIp = (rawReq && (rawReq.headers['x-forwarded-for'] || rawReq.ip || rawReq.connection?.remoteAddress)) || 'unknown-client';
     const cleanIp = typeof clientIp === 'string' ? clientIp.split(',')[0].trim() : 'unknown-client';
@@ -3065,7 +3090,7 @@ exports.checkForgotPasswordEmployeeStatus = functions.https.onCall(async (reques
 
 
 
-exports.resolveUsernameToEmail = functions.https.onCall(async (request) => {
+exports.resolveUsernameToEmail = secureOnCall(async (request) => {
     const rawReq = request.rawRequest;
     const clientIp = (rawReq && (rawReq.headers['x-forwarded-for'] || rawReq.ip || rawReq.connection?.remoteAddress)) || 'unknown-client';
     const cleanIp = typeof clientIp === 'string' ? clientIp.split(',')[0].trim() : 'unknown-client';
@@ -3184,7 +3209,7 @@ exports.resolveUsernameToEmail = functions.https.onCall(async (request) => {
 
 
 // Secure server-side referral counter increments with IP rate-limiting (Finding 2)
-exports.recordReferralMetricServer = functions.https.onCall(async (request) => {
+exports.recordReferralMetricServer = secureOnCall(async (request) => {
     const { refId, metric } = request.data || {};
     if (!refId || typeof refId !== 'string' || !metric || typeof metric !== 'string') {
         throw new functions.https.HttpsError('invalid-argument', 'Missing refId or metric.');
@@ -3231,7 +3256,7 @@ exports.recordReferralMetricServer = functions.https.onCall(async (request) => {
 });
 
 // Sync staff Google Login UID to Firestore staff_accounts collection (Finding 10)
-exports.syncStaffGoogleLogin = functions.https.onCall(async (request) => {
+exports.syncStaffGoogleLogin = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
     }
@@ -3317,7 +3342,7 @@ exports.syncStaffGoogleLogin = functions.https.onCall(async (request) => {
  *   contentType  — MIME type e.g. "image/jpeg" or "application/pdf"
  *   fileSize     — size in bytes (must be <= 10MB)
  */
-exports.getUploadUrl = functions.https.onCall(async (request) => {
+exports.getUploadUrl = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to upload files.');
     }
@@ -3665,7 +3690,7 @@ const computeAndApplyUserClaims = async (uid, resolvedDocId = null, explicitDoc 
  * setAdminClaims
  * Called after any staff/admin login. Fetches user permissions and stamps them as custom claims.
  */
-exports.setAdminClaims = functions.https.onCall(async (request) => {
+exports.setAdminClaims = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated.');
     }
@@ -3712,7 +3737,7 @@ exports.setAdminClaims = functions.https.onCall(async (request) => {
  * refreshAdminClaims
  * Called by SuperAdmin after changing another staff member's role or permissions.
  */
-exports.refreshAdminClaims = functions.https.onCall(async (request) => {
+exports.refreshAdminClaims = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated.');
     }
@@ -3909,7 +3934,7 @@ exports.onSettingsSitesWritten = onDocumentWritten("settings/sites", async (even
  * Public callable: Returns safe, sanitized challenge metadata for a correction link
  * WITHOUT leaking plaintext verificationDob, verificationPhone, or requestedFieldValues.
  */
-exports.getCorrectionChallenge = functions.https.onCall(async (request) => {
+exports.getCorrectionChallenge = secureOnCall(async (request) => {
     const { token } = request.data || {};
     if (!token || typeof token !== 'string') {
         throw new functions.https.HttpsError('invalid-argument', 'Correction token is required.');
@@ -3971,7 +3996,7 @@ exports.getCorrectionChallenge = functions.https.onCall(async (request) => {
  * Enforces rate limiting (max 5 attempts).
  * On success, issues an HMAC-signed session token and releases requestedFieldDefinitions/Values.
  */
-exports.verifyCorrectionIdentity = functions.https.onCall(async (request) => {
+exports.verifyCorrectionIdentity = secureOnCall(async (request) => {
     const { token, dob, phone } = request.data || {};
     if (!token || typeof token !== 'string') {
         throw new functions.https.HttpsError('invalid-argument', 'Correction token is required.');
@@ -4085,7 +4110,7 @@ exports.verifyCorrectionIdentity = functions.https.onCall(async (request) => {
  * recalculates identifiers and duplicate checks, marks correction request completed,
  * and clears activeCorrectionToken.
  */
-exports.submitCorrectionServer = functions.https.onCall(async (request) => {
+exports.submitCorrectionServer = secureOnCall(async (request) => {
     const { token, sessionToken, updatedFields } = request.data || {};
     if (!token || !updatedFields || typeof updatedFields !== 'object') {
         throw new functions.https.HttpsError('invalid-argument', 'Token and updatedFields are required.');
@@ -4428,7 +4453,7 @@ async function resolveSubmissionDocAdmin(db, empId, subDocId) {
     return null;
 }
 
-exports.processRequestReviewServer = functions.https.onCall(async (request) => {
+exports.processRequestReviewServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to review requests.');
     }
@@ -4861,7 +4886,7 @@ exports.processRequestReviewServer = functions.https.onCall(async (request) => {
 // CLOUD-5: Atomic Employee Lifecycle State Machine
 // ─────────────────────────────────────────────────────────────────────────────
 
-exports.approveOnboardingServer = functions.https.onCall(async (request) => {
+exports.approveOnboardingServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to approve onboarding.');
     }
@@ -5183,7 +5208,7 @@ exports.approveOnboardingServer = functions.https.onCall(async (request) => {
     };
 });
 
-exports.relieveEmployeeServer = functions.https.onCall(async (request) => {
+exports.relieveEmployeeServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to relieve employees.');
     }
@@ -5313,7 +5338,7 @@ exports.relieveEmployeeServer = functions.https.onCall(async (request) => {
     };
 });
 
-exports.rejoinEmployeeServer = functions.https.onCall(async (request) => {
+exports.rejoinEmployeeServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to rejoin employees.');
     }
@@ -5584,7 +5609,7 @@ exports.rejoinEmployeeServer = functions.https.onCall(async (request) => {
 // CLOUD-6: IMMUTABLE AUDIT TRAIL & SECURE GAMIFICATION ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
 
-exports.logClientAuditEvent = functions.https.onCall(async (request) => {
+exports.logClientAuditEvent = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to log audit events.');
     }
@@ -5626,7 +5651,7 @@ exports.logClientAuditEvent = functions.https.onCall(async (request) => {
     return { success: true, logId: docRef.id };
 });
 
-exports.completeTrainingQuizServer = functions.https.onCall(async (request) => {
+exports.completeTrainingQuizServer = secureOnCall(async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to submit quiz answers.');
     }
@@ -6219,7 +6244,7 @@ async function appendSubmissionToSheetsServer(recordData, formData, driveFolderU
 }
 
 // Callable wrapper for syncEmployeeToGoogleDriveServer
-exports.syncEmployeeToGoogleDriveServer = functions.https.onCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
+exports.syncEmployeeToGoogleDriveServer = secureOnCall({ timeoutSeconds: 300, memory: '1GiB' }, async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to sync Drive files.');
     }
@@ -6238,7 +6263,7 @@ exports.syncEmployeeToGoogleDriveServer = functions.https.onCall({ timeoutSecond
 });
 
 // Callable wrapper for syncSubmissionToSheetsServer
-exports.syncSubmissionToSheetsServer = functions.https.onCall({ timeoutSeconds: 120 }, async (request) => {
+exports.syncSubmissionToSheetsServer = secureOnCall({ timeoutSeconds: 120 }, async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to sync submission.');
     }

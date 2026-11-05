@@ -299,8 +299,7 @@ export const checkEmailUniquenessGlobal = async (email: string, options: { exclu
     const cleanEmail = email ? email.trim() : '';
     if (!cleanEmail && !options.uid) return true;
     try {
-        const { getFunctions, httpsCallable } = await import('firebase/functions');
-        const functions = getFunctions();
+        const { httpsCallable } = await import('firebase/functions');
         const checkFn = httpsCallable<{ email?: string; uid?: string; options?: { excludeAdmin?: boolean } }, { unique: boolean, conflict: string | null }>(functions, 'checkGlobalUniqueness');
 
         const result = await checkFn({ email: cleanEmail || undefined, uid: options.uid, options: { excludeAdmin: options.excludeAdmin } });
@@ -328,8 +327,7 @@ export const loginUser = async (userInput: string, password: string): Promise<Us
             let foundEmail: string | null = null;
 
             try {
-                const { getFunctions, httpsCallable } = await import('firebase/functions');
-                const functions = getFunctions();
+                const { httpsCallable } = await import('firebase/functions');
                 const resolveFn = httpsCallable<{ username: string; portalType: string }, { email: string | null }>(functions, 'resolveUsernameToEmail');
                 const result = await resolveFn({ username: userInput, portalType });
                 foundEmail = result.data.email;

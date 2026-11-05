@@ -10,6 +10,17 @@ if (import.meta.env.PROD) {
   console.table = noop;
 }
 
+// SECURITY: Enforce official custom domain to prevent Cloudflare WAF bypass via .web.app or .firebaseapp.com
+if (typeof window !== 'undefined') {
+  const h = window.location.hostname;
+  if (h && (h.includes('.web.app') || h.includes('.firebaseapp.com'))) {
+    let target = 'udfonline.in';
+    if (h.includes('-admin')) target = 'admin.udfonline.in';
+    else if (h.includes('-employee')) target = 'employee.udfonline.in';
+    window.location.replace(`https://${target}${window.location.pathname}${window.location.search}${window.location.hash}`);
+  }
+}
+
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';

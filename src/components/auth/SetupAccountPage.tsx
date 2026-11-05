@@ -5,8 +5,8 @@ import Input from '@/components/common/Input';
 import { ShieldCheck, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, linkWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '../../firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
 
 const SetupAccountPage: React.FC = () => {
@@ -27,8 +27,7 @@ const SetupAccountPage: React.FC = () => {
 
             // Link this Google Account to the Employee Record safely via Cloud Function
             if (user && user.employeeId) {
-                const functions = getFunctions();
-                const selfLinkGoogleFn = httpsCallable(functions, 'selfLinkGoogleAccount');
+                                const selfLinkGoogleFn = httpsCallable(functions, 'selfLinkGoogleAccount');
                 await selfLinkGoogleFn({
                     employeeId: user.employeeId,
                     googleUid: result.uid,
@@ -66,8 +65,7 @@ const SetupAccountPage: React.FC = () => {
         try {
             if (user && user.employeeId) {
                 // SECURITY: Hash password server-side with bcrypt via Cloud Function
-                const functions = getFunctions();
-                const setupPasswordFn = httpsCallable(functions, 'setupEmployeePassword');
+                                const setupPasswordFn = httpsCallable(functions, 'setupEmployeePassword');
                 await setupPasswordFn({ employeeId: user.employeeId, newPassword });
 
                 // Update local context

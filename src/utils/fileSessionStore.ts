@@ -14,7 +14,13 @@ const DB_VERSION = 1;
 
 // --- Crypto Utils ---
 async function getOrGenerateKey(): Promise<CryptoKey> {
-  let keyStr = sessionStorage.getItem('__fs_key') || localStorage.getItem('__fs_key');
+  // PRIVACY HARDENING: Exclusively store key in sessionStorage so it disappears when tab closes.
+  // Proactively purge any legacy key previously stored in localStorage to protect shared/kiosk PCs.
+  try {
+    localStorage.removeItem('__fs_key');
+  } catch {}
+
+  let keyStr = sessionStorage.getItem('__fs_key');
   let rawKey: Uint8Array;
   
   if (keyStr) {
@@ -31,7 +37,6 @@ async function getOrGenerateKey(): Promise<CryptoKey> {
     const binString = Array.from(rawKey, (byte) => String.fromCodePoint(byte)).join("");
     const encoded = btoa(binString);
     sessionStorage.setItem('__fs_key', encoded);
-    localStorage.setItem('__fs_key', encoded);
   }
   
   return await window.crypto.subtle.importKey(
@@ -231,7 +236,9 @@ export async function getAllFilesFromSession(): Promise<Record<string, File>> {
 export async function clearFileSession(): Promise<void> {
   try {
     sessionStorage.removeItem('__fs_key');
-    localStorage.removeItem('__fs_key');
+    try {
+      localStorage.removeItem('__fs_key');
+    } catch {}
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).clear();

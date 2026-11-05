@@ -29,23 +29,6 @@
           ]
         },
         {
-          "source": "ads.txt",
-          "headers": [
-            {
-              "key": "Content-Type",
-              "value": "text/plain; charset=utf-8"
-            },
-            {
-              "key": "Access-Control-Allow-Origin",
-              "value": "*"
-            },
-            {
-              "key": "Cache-Control",
-              "value": "public, max-age=86400"
-            }
-          ]
-        },
-        {
           "source": "robots.txt",
           "headers": [
             {
@@ -152,7 +135,7 @@
             },
             {
               "key": "Content-Security-Policy",
-              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://recaptchaenterprise.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://*.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com; img-src 'self' data: blob: https://storage.googleapis.com https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com https://www.google.com https://www.gstatic.com https://udfonline.in https://*.udfonline.in https://www.transparenttextures.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;"
+              "value": "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://recaptchaenterprise.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://us-central1-hr-portal-unique-delta.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com; img-src 'self' data: blob: https://storage.googleapis.com https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com https://www.google.com https://www.gstatic.com https://udfonline.in https://*.udfonline.in https://www.transparenttextures.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;"
             },
             {
               "key": "Permissions-Policy",
@@ -162,6 +145,170 @@
         }
       ],
       "rewrites": [
+        {
+          "source": "/api/hashCandidatePasswordServer",
+          "function": "hashCandidatePasswordServer"
+        },
+        {
+          "source": "/api/checkGlobalUniqueness",
+          "function": "checkGlobalUniqueness"
+        },
+        {
+          "source": "/api/createStaffUser",
+          "function": "createStaffUser"
+        },
+        {
+          "source": "/api/deleteStaffUser",
+          "function": "deleteStaffUser"
+        },
+        {
+          "source": "/api/setStaffUserStatus",
+          "function": "setStaffUserStatus"
+        },
+        {
+          "source": "/api/resetStaffUserPassword",
+          "function": "resetStaffUserPassword"
+        },
+        {
+          "source": "/api/employeeGoogleLogin",
+          "function": "employeeGoogleLogin"
+        },
+        {
+          "source": "/api/employeeLogin",
+          "function": "employeeLogin"
+        },
+        {
+          "source": "/api/verifyAndResetEmployeePassword",
+          "function": "verifyAndResetEmployeePassword"
+        },
+        {
+          "source": "/api/changeEmployeePassword",
+          "function": "changeEmployeePassword"
+        },
+        {
+          "source": "/api/linkEmployeeGoogleAccount",
+          "function": "linkEmployeeGoogleAccount"
+        },
+        {
+          "source": "/api/verifyEmployeePassword",
+          "function": "verifyEmployeePassword"
+        },
+        {
+          "source": "/api/unlinkEmployeeGoogleAccount",
+          "function": "unlinkEmployeeGoogleAccount"
+        },
+        {
+          "source": "/api/setupEmployeePassword",
+          "function": "setupEmployeePassword"
+        },
+        {
+          "source": "/api/selfLinkGoogleAccount",
+          "function": "selfLinkGoogleAccount"
+        },
+        {
+          "source": "/api/adminControlEmployeeAuth",
+          "function": "adminControlEmployeeAuth"
+        },
+        {
+          "source": "/api/getSecureDocumentURL",
+          "function": "getSecureDocumentURL"
+        },
+        {
+          "source": "/api/getBatchSignedViewUrls",
+          "function": "getBatchSignedViewUrls"
+        },
+        {
+          "source": "/api/moveStorageFolder",
+          "function": "moveStorageFolder"
+        },
+        {
+          "source": "/api/deleteStoragePath",
+          "function": "deleteStoragePath"
+        },
+        {
+          "source": "/api/getStorageFolderSizeServer",
+          "function": "getStorageFolderSizeServer"
+        },
+        {
+          "source": "/api/claimEmployeeProfile",
+          "function": "claimEmployeeProfile"
+        },
+        {
+          "source": "/api/getSystemMetrics",
+          "function": "getSystemMetrics"
+        },
+        {
+          "source": "/api/checkForgotPasswordEmployeeStatus",
+          "function": "checkForgotPasswordEmployeeStatus"
+        },
+        {
+          "source": "/api/resolveUsernameToEmail",
+          "function": "resolveUsernameToEmail"
+        },
+        {
+          "source": "/api/recordReferralMetricServer",
+          "function": "recordReferralMetricServer"
+        },
+        {
+          "source": "/api/syncStaffGoogleLogin",
+          "function": "syncStaffGoogleLogin"
+        },
+        {
+          "source": "/api/getUploadUrl",
+          "function": "getUploadUrl"
+        },
+        {
+          "source": "/api/setAdminClaims",
+          "function": "setAdminClaims"
+        },
+        {
+          "source": "/api/refreshAdminClaims",
+          "function": "refreshAdminClaims"
+        },
+        {
+          "source": "/api/getCorrectionChallenge",
+          "function": "getCorrectionChallenge"
+        },
+        {
+          "source": "/api/verifyCorrectionIdentity",
+          "function": "verifyCorrectionIdentity"
+        },
+        {
+          "source": "/api/submitCorrectionServer",
+          "function": "submitCorrectionServer"
+        },
+        {
+          "source": "/api/processRequestReviewServer",
+          "function": "processRequestReviewServer"
+        },
+        {
+          "source": "/api/approveOnboardingServer",
+          "function": "approveOnboardingServer"
+        },
+        {
+          "source": "/api/relieveEmployeeServer",
+          "function": "relieveEmployeeServer"
+        },
+        {
+          "source": "/api/rejoinEmployeeServer",
+          "function": "rejoinEmployeeServer"
+        },
+        {
+          "source": "/api/logClientAuditEvent",
+          "function": "logClientAuditEvent"
+        },
+        {
+          "source": "/api/completeTrainingQuizServer",
+          "function": "completeTrainingQuizServer"
+        },
+        {
+          "source": "/api/syncEmployeeToGoogleDriveServer",
+          "function": "syncEmployeeToGoogleDriveServer"
+        },
+        {
+          "source": "/api/syncSubmissionToSheetsServer",
+          "function": "syncSubmissionToSheetsServer"
+        },
         {
           "source": "**",
           "destination": "/index.html"
@@ -225,7 +372,7 @@
             },
             {
               "key": "Content-Security-Policy",
-              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://recaptchaenterprise.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://*.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com; img-src 'self' data: blob: https://storage.googleapis.com https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com https://www.google.com https://www.gstatic.com https://udfonline.in https://*.udfonline.in https://www.transparenttextures.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;"
+              "value": "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://recaptchaenterprise.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://us-central1-hr-portal-unique-delta.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com; img-src 'self' data: blob: https://storage.googleapis.com https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com https://www.google.com https://www.gstatic.com https://udfonline.in https://*.udfonline.in https://www.transparenttextures.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;"
             },
             {
               "key": "Permissions-Policy",
@@ -235,6 +382,170 @@
         }
       ],
       "rewrites": [
+        {
+          "source": "/api/hashCandidatePasswordServer",
+          "function": "hashCandidatePasswordServer"
+        },
+        {
+          "source": "/api/checkGlobalUniqueness",
+          "function": "checkGlobalUniqueness"
+        },
+        {
+          "source": "/api/createStaffUser",
+          "function": "createStaffUser"
+        },
+        {
+          "source": "/api/deleteStaffUser",
+          "function": "deleteStaffUser"
+        },
+        {
+          "source": "/api/setStaffUserStatus",
+          "function": "setStaffUserStatus"
+        },
+        {
+          "source": "/api/resetStaffUserPassword",
+          "function": "resetStaffUserPassword"
+        },
+        {
+          "source": "/api/employeeGoogleLogin",
+          "function": "employeeGoogleLogin"
+        },
+        {
+          "source": "/api/employeeLogin",
+          "function": "employeeLogin"
+        },
+        {
+          "source": "/api/verifyAndResetEmployeePassword",
+          "function": "verifyAndResetEmployeePassword"
+        },
+        {
+          "source": "/api/changeEmployeePassword",
+          "function": "changeEmployeePassword"
+        },
+        {
+          "source": "/api/linkEmployeeGoogleAccount",
+          "function": "linkEmployeeGoogleAccount"
+        },
+        {
+          "source": "/api/verifyEmployeePassword",
+          "function": "verifyEmployeePassword"
+        },
+        {
+          "source": "/api/unlinkEmployeeGoogleAccount",
+          "function": "unlinkEmployeeGoogleAccount"
+        },
+        {
+          "source": "/api/setupEmployeePassword",
+          "function": "setupEmployeePassword"
+        },
+        {
+          "source": "/api/selfLinkGoogleAccount",
+          "function": "selfLinkGoogleAccount"
+        },
+        {
+          "source": "/api/adminControlEmployeeAuth",
+          "function": "adminControlEmployeeAuth"
+        },
+        {
+          "source": "/api/getSecureDocumentURL",
+          "function": "getSecureDocumentURL"
+        },
+        {
+          "source": "/api/getBatchSignedViewUrls",
+          "function": "getBatchSignedViewUrls"
+        },
+        {
+          "source": "/api/moveStorageFolder",
+          "function": "moveStorageFolder"
+        },
+        {
+          "source": "/api/deleteStoragePath",
+          "function": "deleteStoragePath"
+        },
+        {
+          "source": "/api/getStorageFolderSizeServer",
+          "function": "getStorageFolderSizeServer"
+        },
+        {
+          "source": "/api/claimEmployeeProfile",
+          "function": "claimEmployeeProfile"
+        },
+        {
+          "source": "/api/getSystemMetrics",
+          "function": "getSystemMetrics"
+        },
+        {
+          "source": "/api/checkForgotPasswordEmployeeStatus",
+          "function": "checkForgotPasswordEmployeeStatus"
+        },
+        {
+          "source": "/api/resolveUsernameToEmail",
+          "function": "resolveUsernameToEmail"
+        },
+        {
+          "source": "/api/recordReferralMetricServer",
+          "function": "recordReferralMetricServer"
+        },
+        {
+          "source": "/api/syncStaffGoogleLogin",
+          "function": "syncStaffGoogleLogin"
+        },
+        {
+          "source": "/api/getUploadUrl",
+          "function": "getUploadUrl"
+        },
+        {
+          "source": "/api/setAdminClaims",
+          "function": "setAdminClaims"
+        },
+        {
+          "source": "/api/refreshAdminClaims",
+          "function": "refreshAdminClaims"
+        },
+        {
+          "source": "/api/getCorrectionChallenge",
+          "function": "getCorrectionChallenge"
+        },
+        {
+          "source": "/api/verifyCorrectionIdentity",
+          "function": "verifyCorrectionIdentity"
+        },
+        {
+          "source": "/api/submitCorrectionServer",
+          "function": "submitCorrectionServer"
+        },
+        {
+          "source": "/api/processRequestReviewServer",
+          "function": "processRequestReviewServer"
+        },
+        {
+          "source": "/api/approveOnboardingServer",
+          "function": "approveOnboardingServer"
+        },
+        {
+          "source": "/api/relieveEmployeeServer",
+          "function": "relieveEmployeeServer"
+        },
+        {
+          "source": "/api/rejoinEmployeeServer",
+          "function": "rejoinEmployeeServer"
+        },
+        {
+          "source": "/api/logClientAuditEvent",
+          "function": "logClientAuditEvent"
+        },
+        {
+          "source": "/api/completeTrainingQuizServer",
+          "function": "completeTrainingQuizServer"
+        },
+        {
+          "source": "/api/syncEmployeeToGoogleDriveServer",
+          "function": "syncEmployeeToGoogleDriveServer"
+        },
+        {
+          "source": "/api/syncSubmissionToSheetsServer",
+          "function": "syncSubmissionToSheetsServer"
+        },
         {
           "source": "**",
           "destination": "/index.html"
@@ -298,7 +609,7 @@
             },
             {
               "key": "Content-Security-Policy",
-              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://recaptchaenterprise.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://*.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com; img-src 'self' data: blob: https://storage.googleapis.com https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com https://www.google.com https://www.gstatic.com https://udfonline.in https://*.udfonline.in https://www.transparenttextures.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;"
+              "value": "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://recaptchaenterprise.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://us-central1-hr-portal-unique-delta.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com; img-src 'self' data: blob: https://storage.googleapis.com https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com https://www.google.com https://www.gstatic.com https://udfonline.in https://*.udfonline.in https://www.transparenttextures.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptchaenterprise.googleapis.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; worker-src 'self' blob:;"
             },
             {
               "key": "Permissions-Policy",
@@ -308,6 +619,170 @@
         }
       ],
       "rewrites": [
+        {
+          "source": "/api/hashCandidatePasswordServer",
+          "function": "hashCandidatePasswordServer"
+        },
+        {
+          "source": "/api/checkGlobalUniqueness",
+          "function": "checkGlobalUniqueness"
+        },
+        {
+          "source": "/api/createStaffUser",
+          "function": "createStaffUser"
+        },
+        {
+          "source": "/api/deleteStaffUser",
+          "function": "deleteStaffUser"
+        },
+        {
+          "source": "/api/setStaffUserStatus",
+          "function": "setStaffUserStatus"
+        },
+        {
+          "source": "/api/resetStaffUserPassword",
+          "function": "resetStaffUserPassword"
+        },
+        {
+          "source": "/api/employeeGoogleLogin",
+          "function": "employeeGoogleLogin"
+        },
+        {
+          "source": "/api/employeeLogin",
+          "function": "employeeLogin"
+        },
+        {
+          "source": "/api/verifyAndResetEmployeePassword",
+          "function": "verifyAndResetEmployeePassword"
+        },
+        {
+          "source": "/api/changeEmployeePassword",
+          "function": "changeEmployeePassword"
+        },
+        {
+          "source": "/api/linkEmployeeGoogleAccount",
+          "function": "linkEmployeeGoogleAccount"
+        },
+        {
+          "source": "/api/verifyEmployeePassword",
+          "function": "verifyEmployeePassword"
+        },
+        {
+          "source": "/api/unlinkEmployeeGoogleAccount",
+          "function": "unlinkEmployeeGoogleAccount"
+        },
+        {
+          "source": "/api/setupEmployeePassword",
+          "function": "setupEmployeePassword"
+        },
+        {
+          "source": "/api/selfLinkGoogleAccount",
+          "function": "selfLinkGoogleAccount"
+        },
+        {
+          "source": "/api/adminControlEmployeeAuth",
+          "function": "adminControlEmployeeAuth"
+        },
+        {
+          "source": "/api/getSecureDocumentURL",
+          "function": "getSecureDocumentURL"
+        },
+        {
+          "source": "/api/getBatchSignedViewUrls",
+          "function": "getBatchSignedViewUrls"
+        },
+        {
+          "source": "/api/moveStorageFolder",
+          "function": "moveStorageFolder"
+        },
+        {
+          "source": "/api/deleteStoragePath",
+          "function": "deleteStoragePath"
+        },
+        {
+          "source": "/api/getStorageFolderSizeServer",
+          "function": "getStorageFolderSizeServer"
+        },
+        {
+          "source": "/api/claimEmployeeProfile",
+          "function": "claimEmployeeProfile"
+        },
+        {
+          "source": "/api/getSystemMetrics",
+          "function": "getSystemMetrics"
+        },
+        {
+          "source": "/api/checkForgotPasswordEmployeeStatus",
+          "function": "checkForgotPasswordEmployeeStatus"
+        },
+        {
+          "source": "/api/resolveUsernameToEmail",
+          "function": "resolveUsernameToEmail"
+        },
+        {
+          "source": "/api/recordReferralMetricServer",
+          "function": "recordReferralMetricServer"
+        },
+        {
+          "source": "/api/syncStaffGoogleLogin",
+          "function": "syncStaffGoogleLogin"
+        },
+        {
+          "source": "/api/getUploadUrl",
+          "function": "getUploadUrl"
+        },
+        {
+          "source": "/api/setAdminClaims",
+          "function": "setAdminClaims"
+        },
+        {
+          "source": "/api/refreshAdminClaims",
+          "function": "refreshAdminClaims"
+        },
+        {
+          "source": "/api/getCorrectionChallenge",
+          "function": "getCorrectionChallenge"
+        },
+        {
+          "source": "/api/verifyCorrectionIdentity",
+          "function": "verifyCorrectionIdentity"
+        },
+        {
+          "source": "/api/submitCorrectionServer",
+          "function": "submitCorrectionServer"
+        },
+        {
+          "source": "/api/processRequestReviewServer",
+          "function": "processRequestReviewServer"
+        },
+        {
+          "source": "/api/approveOnboardingServer",
+          "function": "approveOnboardingServer"
+        },
+        {
+          "source": "/api/relieveEmployeeServer",
+          "function": "relieveEmployeeServer"
+        },
+        {
+          "source": "/api/rejoinEmployeeServer",
+          "function": "rejoinEmployeeServer"
+        },
+        {
+          "source": "/api/logClientAuditEvent",
+          "function": "logClientAuditEvent"
+        },
+        {
+          "source": "/api/completeTrainingQuizServer",
+          "function": "completeTrainingQuizServer"
+        },
+        {
+          "source": "/api/syncEmployeeToGoogleDriveServer",
+          "function": "syncEmployeeToGoogleDriveServer"
+        },
+        {
+          "source": "/api/syncSubmissionToSheetsServer",
+          "function": "syncSubmissionToSheetsServer"
+        },
         {
           "source": "**",
           "destination": "/index.html"

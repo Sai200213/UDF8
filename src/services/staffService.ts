@@ -1,4 +1,5 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase/config';
 import { logSystemAction } from './auditService';
 
 export interface CreateStaffUserData {
@@ -27,8 +28,7 @@ export interface DeleteStaffResult {
  */
 export const createStaffUser = async (data: CreateStaffUserData): Promise<CreateStaffResult> => {
     try {
-        const functions = getFunctions();
-        const createFn = httpsCallable<CreateStaffUserData, CreateStaffResult>(functions, 'createStaffUser');
+                const createFn = httpsCallable<CreateStaffUserData, CreateStaffResult>(functions, 'createStaffUser');
         const result = await createFn(data);
         if (result.data?.success) {
             await logSystemAction('CREATE', 'STAFF', `Created staff user "${data.name}" (${data.email}, @${data.username}) with role ID: ${data.roleId}`);
@@ -45,8 +45,7 @@ export const createStaffUser = async (data: CreateStaffUserData): Promise<Create
  */
 export const deleteStaffUser = async (uid: string): Promise<DeleteStaffResult> => {
     try {
-        const functions = getFunctions();
-        const deleteFn = httpsCallable<{ uid: string }, DeleteStaffResult>(functions, 'deleteStaffUser');
+                const deleteFn = httpsCallable<{ uid: string }, DeleteStaffResult>(functions, 'deleteStaffUser');
         const result = await deleteFn({ uid });
         if (result.data?.success) {
             await logSystemAction('DELETE', 'STAFF', `Deleted staff user account with UID: ${uid}`);
@@ -73,8 +72,7 @@ export interface ResetStaffUserPasswordResult {
  */
 export const setStaffUserStatus = async (uid: string, isDisabled: boolean): Promise<SetStaffUserStatusResult> => {
     try {
-        const functions = getFunctions();
-        const setStatusFn = httpsCallable<{ uid: string; isDisabled: boolean }, SetStaffUserStatusResult>(functions, 'setStaffUserStatus');
+                const setStatusFn = httpsCallable<{ uid: string; isDisabled: boolean }, SetStaffUserStatusResult>(functions, 'setStaffUserStatus');
         const result = await setStatusFn({ uid, isDisabled });
         if (result.data?.success) {
             await logSystemAction('STATUS_CHANGE', 'STAFF', `${isDisabled ? 'Disabled' : 'Enabled'} staff account (UID: ${uid})`);
@@ -91,8 +89,7 @@ export const setStaffUserStatus = async (uid: string, isDisabled: boolean): Prom
  */
 export const resetStaffUserPassword = async (uid: string, password: string): Promise<ResetStaffUserPasswordResult> => {
     try {
-        const functions = getFunctions();
-        const resetPasswordFn = httpsCallable<{ uid: string; password: string }, ResetStaffUserPasswordResult>(functions, 'resetStaffUserPassword');
+                const resetPasswordFn = httpsCallable<{ uid: string; password: string }, ResetStaffUserPasswordResult>(functions, 'resetStaffUserPassword');
         const result = await resetPasswordFn({ uid, password });
         if (result.data?.success) {
             await logSystemAction('UPDATE', 'AUTH', `Reset password for staff user account (UID: ${uid})`);

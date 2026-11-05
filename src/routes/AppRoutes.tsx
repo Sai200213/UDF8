@@ -90,6 +90,16 @@ const StaticFileViewer: React.FC<{ content: string }> = ({ content }) => {
     );
 };
 
+// Helper to prevent Open Redirect attacks via ?redirect= parameter
+const getSafeRedirectUrl = (raw: string | null, fallback: string = '/dashboard'): string => {
+    if (!raw) return fallback;
+    // Strictly require a relative local path: starts with single '/', no protocol-relative '//', no backslashes, no scheme
+    if (raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\') && !raw.includes('://')) {
+        return raw;
+    }
+    return fallback;
+};
+
 interface AppRoutesProps {
     // Common
     isLoading: boolean;
@@ -213,7 +223,7 @@ const AppRoutes: React.FC<AppRoutesProps> = (props) => {
                     } />
                     <Route path="/login" element={
                         props.authUser && props.authUser.type === UserType.EMPLOYEE ? (
-                            <Navigate to={new URLSearchParams(window.location.search).get('redirect') || "/dashboard"} replace />
+                            <Navigate to={getSafeRedirectUrl(new URLSearchParams(window.location.search).get('redirect'))} replace />
                         ) : (
                             renderEmployeeLogin()
                         )

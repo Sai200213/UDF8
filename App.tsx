@@ -2426,12 +2426,12 @@ const App: React.FC = () => {
       setAuthUser(employeeUser);
       await logSystemAction('LOGIN', 'AUTH', `Employee logged in: ${name} (${emp.employeeId})`, employeeUser);
       const balance = leaveBalances.find(b => b.employeeId === emp.employeeId || b.employeeId === employeeUser.portalId);
-      const redirectPath = new URLSearchParams(window.location.search).get('redirect');
-      if (redirectPath) {
-        navigate(redirectPath);
-      } else {
-        navigate('/dashboard');
-      }
+      const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+      // Strictly prevent Open Redirect: must start with single '/', never '//', no protocol/scheme
+      const safeRedirect = (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//') && !redirectParam.startsWith('/\\') && !redirectParam.includes('://'))
+        ? redirectParam
+        : '/dashboard';
+      navigate(safeRedirect);
     },
     authUser: authUser,
     employeeData: employeeData,

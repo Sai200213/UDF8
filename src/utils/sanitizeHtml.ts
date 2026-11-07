@@ -79,6 +79,11 @@ export const sanitizeHtml = (html: string): string => {
           }
         }
 
+        // SEC-19: Namespace id attributes to prevent DOM clobbering
+        if (name === 'id') {
+          el.setAttribute('id', 'udf-content-' + value.replace(/[^a-zA-Z0-9_-]/g, ''));
+        }
+
         // Security hardening for external links
         if (name === 'href' && el.getAttribute('target') === '_blank') {
           el.setAttribute('rel', 'noopener noreferrer');

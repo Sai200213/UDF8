@@ -2,7 +2,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc, 
   updateDoc, query, orderBy, onSnapshot, serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, auth } from '../firebase/config';
 import { SETTINGS_COLLECTION } from './adminService';
 import { Site } from '../../types';
 import { resolveEmployeeDoc } from './employeeService';
@@ -118,10 +118,20 @@ export async function restoreFromRecycleBin(recycleBinItemId: string): Promise<{
       }
 
       case 'STAFF': {
+        // SEC-07: Verify restorer permissions and sanitize restored data to prevent SuperAdmin privilege escalation
+        const tokenResult = await auth.currentUser?.getIdTokenResult();
+        const claims = tokenResult?.claims || {};
+        const isSuperAdminRestorer = claims.isSuperAdmin === true || claims.roleId === 'role-super-admin';
+
+        const restoredData = { ...data };
+        if (!isSuperAdminRestorer && (restoredData.roleId === 'role-super-admin' || restoredData.type === 'Admin')) {
+          throw new Error('Unauthorized: Only SuperAdmin can restore accounts with SuperAdmin privileges.');
+        }
+
         // Restore staff account to staff_accounts collection
         const staffRef = doc(db, 'staff_accounts', originalId);
         await setDoc(staffRef, {
-          ...data,
+          ...restoredData,
           isDisabled: false,
           isDeleted: false,
           deletedAt: null,

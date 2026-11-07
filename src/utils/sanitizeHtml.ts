@@ -10,8 +10,9 @@ const ALLOWED_TAGS = new Set([
   'iframe' // conditionally allowed below for safe video embeds
 ]);
 
+// SEC-19: 'style' attribute removed to prevent CSS injection & clickjacking; user 'id' is namespaced below
 const ALLOWED_ATTRS = new Set([
-  'href', 'src', 'alt', 'title', 'class', 'style', 'id', 'target', 'rel',
+  'href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel',
   'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'colspan', 'rowspan'
 ]);
 

@@ -330,7 +330,7 @@ const DataCorrectionPage: React.FC<DataCorrectionPageProps> = ({ sections }) => 
     setVerifyingGuest(true);
 
     try {
-      // First attempt secure server-side verification with rate limiting
+// SEC-15: Strict server-side verification with rate limiting (eliminates plaintext client leak)
       try {
         const serverVerify = await verifyCorrectionIdentityClient(token, verificationDob, verificationPhone);
         if (serverVerify && serverVerify.success) {
@@ -344,87 +344,9 @@ const DataCorrectionPage: React.FC<DataCorrectionPageProps> = ({ sections }) => 
           return;
         }
       } catch (srvErr: any) {
-        if (srvErr.code === 'permission-denied' || srvErr.code === 'unauthenticated' || srvErr.code === 'failed-precondition') {
-          setVerificationError(srvErr.message || "Verification details do not match.");
-          setVerifyingGuest(false);
-          return;
-        }
-        console.warn("Server verification fallback to local check:", srvErr);
-      }
-
-      const submissionData = targetData || {};
-      const rawForm = submissionData.formData || submissionData.data || {};
-      const candidateSections = submissionData.originalFormSections || [];
-
-      // Look for Date of Birth: check requestDoc first, then candidate sections / submission fields
-      let registeredDob = requestDoc?.verificationDob || null;
-      if (!registeredDob) {
-        const dobField = candidateSections
-          .flatMap((s: any) => s.fields || [])
-          .find((f: any) => f.label?.toLowerCase().includes('birth') || f.id === '6e570a01-14e0-4e18-b112-97ddc51d0778');
-        registeredDob = dobField ? rawForm[dobField.id] : (submissionData.dob || null);
-      }
-
-      // Look for Phone Number: check requestDoc first, then candidate sections / submission fields
-      let registeredPhone = requestDoc?.verificationPhone || null;
-      if (!registeredPhone) {
-        const phoneField = candidateSections
-          .flatMap((s: any) => s.fields || [])
-          .find((f: any) => f.label?.toLowerCase().includes('phone') || f.label?.toLowerCase().includes('mobile') || f.id === 'eb3617dc-9f1d-475d-a2db-005b6bc2500c');
-        registeredPhone = phoneField ? rawForm[phoneField.id] : (submissionData.phoneNumber || null);
-      }
-
-      // Validate DOB
-      const formatDob = (dobStr: string) => {
-        if (!dobStr) return '';
-        try {
-          const d = new Date(dobStr);
-          if (isNaN(d.getTime())) return dobStr.trim();
-          return d.toISOString().substring(0, 10);
-        } catch {
-          return dobStr.trim();
-        }
-      };
-      const dobMatch = Boolean(registeredDob && verificationDob && formatDob(registeredDob) === formatDob(verificationDob));
-
-      // Validate Phone/Mobile Number (digits only, last 10 digits)
-      const cleanPhone = (phoneStr: string) => {
-        if (!phoneStr) return '';
-        const digits = phoneStr.replace(/\D/g, '');
-        return digits.length > 10 ? digits.slice(-10) : digits;
-      };
-      const phoneMatch = Boolean(registeredPhone && verificationPhone.trim() && cleanPhone(registeredPhone) === cleanPhone(verificationPhone));
-
-      if (dobMatch && phoneMatch) {
-        // Sign in anonymously to have a valid auth session for Firestore rules / storage uploads
-        await ensureAuthenticated();
-        setGuestVerified(true);
-      } else {
-        const newAttempts = currentAttempts + 1;
-        const attemptsLeft = MAX_ATTEMPTS - newAttempts;
-
-        try {
-          if (newAttempts >= MAX_ATTEMPTS) {
-            await updateDoc(doc(db, 'correction_requests', token), {
-              failedAttempts: newAttempts,
-              status: 'locked'
-            });
-            setRequestDoc(prev => prev ? { ...prev, failedAttempts: newAttempts, status: 'locked' } : null);
-            setVerificationError("Too many failed attempts. For security reasons, this link has been locked. Please contact HR for a new link.");
-          } else {
-            await updateDoc(doc(db, 'correction_requests', token), {
-              failedAttempts: newAttempts
-            });
-            setRequestDoc(prev => prev ? { ...prev, failedAttempts: newAttempts } : null);
-            setVerificationError(`The Date of Birth or Mobile Number entered does not match our records. (${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining before link is locked)`);
-          }
-        } catch (updateErr) {
-          if (newAttempts >= MAX_ATTEMPTS) {
-            setVerificationError("Too many failed attempts. For security reasons, this link has been locked. Please contact HR for a new link.");
-          } else {
-            setVerificationError(`The Date of Birth or Mobile Number entered does not match our records. (${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining before link is locked)`);
-          }
-        }
+        setVerificationError(srvErr.message || "Verification failed: details do not match our records.");
+        setVerifyingGuest(false);
+        return;
       }
     } catch (err: any) {
       setVerificationError("Verification failed due to an error: " + err.message);

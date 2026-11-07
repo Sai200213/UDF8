@@ -133,11 +133,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, userNam
                             currentPoints = streakSnap.data().points || 0;
                         }
 
+                        // SEC-17: Do not directly mutate points from client; points are ledgered server-side
                         await setDoc(streakRef, {
                             ...streakData,
                             userId,
-                            userName,
-                            points: currentPoints + pointsToAdd
+                            userName
                         }, { merge: true });
                         console.log(`[ATTENDANCE POINTS] Awarded +${pointsToAdd} points to ${userName}`);
                     } catch (pointsErr) {

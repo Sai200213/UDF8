@@ -555,9 +555,9 @@ export const AdminInvitesPage: React.FC<AdminInvitesPageProps> = ({
     if (phoneNum) {
       const cleaned = phoneNum.replace(/\D/g, '');
       const formattedPhone = cleaned.length === 10 ? `91${cleaned}` : cleaned;
-      window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`, '_blank', 'noopener,noreferrer');
     } else {
-      window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank', 'noopener,noreferrer');
     }
   };
 

@@ -3068,7 +3068,7 @@ const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({ sections, isLoading
                                       const originalText = target.innerText;
 
                                       if (valPath.startsWith('http') || valPath.startsWith('data:') || valPath.startsWith('blob:')) {
-                                        window.open(valPath, '_blank');
+                                        window.open(valPath, '_blank', 'noopener,noreferrer');
                                         return;
                                       }
 
@@ -3077,7 +3077,7 @@ const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({ sections, isLoading
                                       try {
                                         const url = await getSecureURL(valPath);
                                         if (url) {
-                                          window.open(url, '_blank');
+                                          window.open(url, '_blank', 'noopener,noreferrer');
                                         } else {
                                           throw new Error("Could not obtain document URL");
                                         }
@@ -3100,7 +3100,7 @@ const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({ sections, isLoading
                                     onClick={(e) => {
                                       e.preventDefault();
                                       const url = URL.createObjectURL(val);
-                                      window.open(url, '_blank');
+                                      window.open(url, '_blank', 'noopener,noreferrer');
                                     }}
                                     className="text-xs text-blue-600 hover:text-blue-700 underline font-semibold ml-2"
                                   >

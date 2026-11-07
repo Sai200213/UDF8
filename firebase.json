@@ -159,6 +159,10 @@
       ],
       "rewrites": [
         {
+          "source": "/api/getDraftSubmissionSecure",
+          "function": "getDraftSubmissionSecure"
+        },
+        {
           "source": "/api/hashCandidatePasswordServer",
           "function": "hashCandidatePasswordServer"
         },
@@ -409,6 +413,10 @@
       ],
       "rewrites": [
         {
+          "source": "/api/getDraftSubmissionSecure",
+          "function": "getDraftSubmissionSecure"
+        },
+        {
           "source": "/api/hashCandidatePasswordServer",
           "function": "hashCandidatePasswordServer"
         },
@@ -658,6 +666,10 @@
         }
       ],
       "rewrites": [
+        {
+          "source": "/api/getDraftSubmissionSecure",
+          "function": "getDraftSubmissionSecure"
+        },
         {
           "source": "/api/hashCandidatePasswordServer",
           "function": "hashCandidatePasswordServer"

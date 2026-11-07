@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { User, SubmittedFormData } from '../../types';
 import { Flame, HelpCircle, Clock, MessageSquareCode, ClipboardCheck, AlertCircle, Sparkles, Smile, ShieldAlert } from 'lucide-react';
 import { getUserStreak, updateOrCreateStreak, submitComplaint, UserStreak, getLocalDateString } from '../../src/services/engagementService';
-import { db } from '../../src/firebase/config';
+import { db, functions } from '../../src/firebase/config';
+import { httpsCallable } from 'firebase/functions';
 import { collection, getDocs, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
 import AttendanceCalendar from './AttendanceCalendar';
 
@@ -99,22 +100,23 @@ const EmployeeEngagementHub: React.FC<EmployeeEngagementHubProps> = ({ authUser,
             console.error("Failed to fetch gamification rules:", e);
         }
 
-        const currentPoints = (streak as any)?.points || 0;
-        const newPoints = currentPoints + (isCorrect ? awardedPoints : 0);
-
         try {
+            // SEC-17: Route quiz completion and points strictly through secure server function
+            const completeQuizFn = httpsCallable<{ selectedAnswer: string; questionId?: string }, { success: boolean; pointsAwarded?: number }>(functions, 'completeTrainingQuizServer');
+            const res = await completeQuizFn({ selectedAnswer: quizAnswer, questionId: currentQuizObj?.id });
+            const awarded = res.data?.pointsAwarded ?? (isCorrect ? awardedPoints : 0);
+
             const docRef = doc(db, 'user_engagement', userId);
             const updated = {
                 ...(streak || { userId, userName, streakCount: 1, lastVisitDate: today }),
-                points: newPoints,
                 lastQuizDate: today,
                 lastQuizOption: quizAnswer,
                 lastQuizCorrect: isCorrect
             };
             await setDoc(docRef, updated, { merge: true });
-            setStreak(updated as any);
+            setStreak(prev => ({ ...(prev || {}), ...updated, points: ((prev as any)?.points || 0) + awarded } as any));
         } catch (err) {
-            console.error("Failed to update quiz points in Firestore:", err);
+            console.error("Failed to complete quiz via server:", err);
         }
     };
 

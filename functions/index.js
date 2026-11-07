@@ -177,8 +177,8 @@ exports.createStaffUser = secureOnCall(async (request) => {
     if (!callerDoc.exists) {
         callerDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
     }
-    if (!callerDoc.exists || callerDoc.data().roleId !== 'role-super-admin') {
-        throw new functions.https.HttpsError('permission-denied', 'Only SuperAdmins can create Staff accounts.');
+    if (!callerDoc.exists || callerDoc.data().roleId !== 'role-super-admin' || callerDoc.data().isDisabled === true || callerDoc.data().isActive === false) {
+        throw new functions.https.HttpsError('permission-denied', 'Only active SuperAdmins can create Staff accounts.');
     }
 
     const { email, password, name, username, roleId } = request.data;
@@ -248,8 +248,8 @@ exports.deleteStaffUser = secureOnCall(async (request) => {
     if (!callerDoc.exists) {
         callerDoc = await admin.firestore().collection('users').doc(request.auth.uid).get();
     }
-    if (!callerDoc.exists || callerDoc.data().roleId !== 'role-super-admin') {
-        throw new functions.https.HttpsError('permission-denied', 'Only SuperAdmins can delete Staff accounts.');
+    if (!callerDoc.exists || callerDoc.data().roleId !== 'role-super-admin' || callerDoc.data().isDisabled === true || callerDoc.data().isActive === false) {
+        throw new functions.https.HttpsError('permission-denied', 'Only active SuperAdmins can delete Staff accounts.');
     }
 
     const { uid } = request.data;
@@ -828,7 +828,7 @@ exports.verifyAndResetEmployeePassword = secureOnCall(async (request) => {
 
         if (!empDoc) {
             console.warn(`[RESET] No record found for ${employeeId}`);
-            throw new functions.https.HttpsError('permission-denied', 'Verification failed: ID not found');
+            throw new functions.https.HttpsError('permission-denied', 'Verification failed: invalid credentials or ID');
         }
 
         const empRef = empDoc.ref;
@@ -911,7 +911,7 @@ exports.verifyAndResetEmployeePassword = secureOnCall(async (request) => {
 
         if (!matchName || !matchMobile || !matchDob || !matchAadhar) {
             console.warn(`[RESET] Verification mismatch for ${employeeId}. Name: ${matchName}, Mobile: ${matchMobile}, DOB: ${matchDob}, Aadhar: ${matchAadhar}`);
-            throw new functions.https.HttpsError('permission-denied', 'Verification failed: details mismatch');
+            throw new functions.https.HttpsError('permission-denied', 'Verification failed: invalid credentials or ID');
         }
 
         // SUCCESS: Clear rate limit counter and hash password with bcrypt
@@ -1764,8 +1764,37 @@ exports.getSecureDocumentURL = secureOnCall(async (request) => {
         // 2. Perform Authorization Checks based on path
         let isAuthorized = false;
 
-        if (isAdminOrStaff) {
-            isAuthorized = true; // Admins can view anything
+        // SEC-08: Enforce site scoping for staff; only SuperAdmin has global document view access
+        const isSuperAdminCaller = (request.auth.token && request.auth.token.isSuperAdmin) || 
+                                   (staffDoc && (staffDoc.roleId === 'role-super-admin' || staffDoc.type === 'Admin')) ||
+                                   (request.auth.token && request.auth.token.permissions && request.auth.token.permissions.includes('EMPLOYEES_VIEW_SCOPE_ALL'));
+
+        if (isAdminOrStaff && isSuperAdminCaller) {
+            isAuthorized = true;
+        } else if (isAdminOrStaff) {
+            // Staff with restricted sites: verify target employee/document belongs to sitesManaged
+            const cleanStoragePath = storagePath.replace(/^\/+/, '');
+            const parts = cleanStoragePath.split('/');
+            const targetDocId = parts[1];
+            if (targetDocId) {
+                const [targetEmp, targetSub] = await Promise.all([
+                    db.collection('employees').doc(targetDocId).get(),
+                    db.collection('onboarding_submissions').doc(targetDocId).get()
+                ]);
+                const docData = (targetEmp.exists ? targetEmp.data() : (targetSub.exists ? targetSub.data() : null)) || {};
+                const docSite = docData.siteId || docData.currentSiteId || '';
+                const staffSites = (staffDoc && Array.isArray(staffDoc.sitesManaged)) ? staffDoc.sitesManaged : (request.auth.token?.sitesManaged || []);
+                if (docSite && staffSites.includes(docSite)) {
+                    isAuthorized = true;
+                } else if (!docSite) {
+                    isAuthorized = true; // Non-site-bound document
+                } else {
+                    console.warn(`[SECURITY] SEC-08 Blocked cross-site document access: Staff ${uid} attempted accessing site "${docSite}"`);
+                    throw new functions.https.HttpsError('permission-denied', 'You do not have permission to view documents from this site.');
+                }
+            } else {
+                isAuthorized = true;
+            }
         } else if (storagePath.startsWith('public/')) {
             isAuthorized = true; // Anyone authenticated can view public assets
         } else if (storagePath.startsWith(`employees/`)) {
@@ -2135,36 +2164,55 @@ exports.moveStorageFolder = secureOnCall(async (request) => {
             isAdminOrStaff = true;
         }
 
-        if (!isAdminOrStaff) {
-            // Check custom claims
-            if (request.auth.token && (request.auth.token.isAdmin || request.auth.token.isSuperAdmin)) {
-                isAdminOrStaff = true;
-            } else {
-                // Check if user is moving their own file or has active correction token
-                const destParts = destinationPath.split('/');
-                const targetId = destParts[1]; // e.g. employees/{targetId}/joining/...
-                if (targetId && (targetId === uid || sourcePath.includes(uid))) {
-                    isAdminOrStaff = true;
-                } else if (targetId) {
-                    const empSnap = await db.collection('employees').doc(targetId).get();
-                    if (empSnap.exists) {
-                        const ed = empSnap.data();
-                        if (ed.linkedUid === uid || ed.uid === uid || ed.portalId === uid) {
-                            isAdminOrStaff = true;
-                        } else if (ed.activeCorrectionToken) {
-                            const crDoc = await db.collection('correction_requests').doc(ed.activeCorrectionToken).get();
-                            if (crDoc.exists && crDoc.data().status === 'pending') {
-                                isAdminOrStaff = true;
-                            }
-                        }
-                    }
-                }
-            }
+        // Check custom claims if not already confirmed staff
+        if (!isAdminOrStaff && request.auth.token && (request.auth.token.isAdmin || request.auth.token.isSuperAdmin)) {
+            isAdminOrStaff = true;
         }
 
+        // If caller is NOT Admin or Staff, enforce strict ownership of BOTH source and destination (SEC-01 IDOR fix)
         if (!isAdminOrStaff) {
-            console.warn(`[SECURITY] Unauthorized move attempt by ${uid} from ${sourcePath} to ${destinationPath}`);
-            throw new functions.https.HttpsError('permission-denied', 'Only Admin or Staff can move storage folders.');
+            if (sourcePath.includes('..') || destinationPath.includes('..')) {
+                throw new functions.https.HttpsError('invalid-argument', 'Path traversal is not permitted.');
+            }
+
+            const cleanSource = sourcePath.replace(/^\/+/, '');
+            const cleanDest = destinationPath.replace(/^\/+/, '');
+
+            // Collect all identifiers that legitimately belong to this caller
+            const allowedIds = new Set([uid]);
+            const [byUidSnap, byLinkedSnap, directDoc] = await Promise.all([
+                db.collection('employees').where('uid', '==', uid).limit(1).get(),
+                db.collection('employees').where('linkedUid', '==', uid).limit(1).get(),
+                db.collection('employees').doc(uid).get()
+            ]);
+
+            if (!byUidSnap.empty) {
+                const ed = byUidSnap.docs[0].data();
+                if (ed.employeeId) allowedIds.add(ed.employeeId);
+                allowedIds.add(byUidSnap.docs[0].id);
+            }
+            if (!byLinkedSnap.empty) {
+                const ed = byLinkedSnap.docs[0].data();
+                if (ed.employeeId) allowedIds.add(ed.employeeId);
+                allowedIds.add(byLinkedSnap.docs[0].id);
+            }
+            if (directDoc.exists) {
+                const ed = directDoc.data();
+                if (ed.employeeId) allowedIds.add(ed.employeeId);
+            }
+
+            const sourceParts = cleanSource.split('/');
+            const sourceId = sourceParts[1];
+            const destParts = cleanDest.split('/');
+            const destId = destParts[1];
+
+            const ownsSource = (sourceId && allowedIds.has(sourceId)) || cleanSource.includes(uid);
+            const ownsDest = (destId && allowedIds.has(destId)) || cleanDest.includes(uid);
+
+            if (!ownsSource || !ownsDest) {
+                console.warn(`[SECURITY] IDOR file move blocked: User ${uid} attempted moving "${sourcePath}" to "${destinationPath}"`);
+                throw new functions.https.HttpsError('permission-denied', 'Access denied. You can only move files within your own employee profile.');
+            }
         }
 
         const bucket = admin.storage().bucket();
@@ -2223,6 +2271,24 @@ exports.deleteStoragePath = secureOnCall(async (request) => {
         throw new functions.https.HttpsError('invalid-argument', 'storagePath cannot be root.');
     }
 
+    if (cleanPath.includes('..')) {
+        throw new functions.https.HttpsError('invalid-argument', 'Path traversal is not permitted.');
+    }
+
+    // SEC-02: Protect against company-wide storage wipeout
+    const pathSegments = cleanPath.split('/').filter(Boolean);
+    const forbiddenRoots = [
+        'employees', 'onboarding', 'draft_submissions', 'users', 'staff',
+        'staff_accounts', 'site_assets', 'blog_assets', 'public', 'temp', 
+        'corrections', 'portal_assets', 'documents', 'submissions', 'bgv', 'leaves'
+    ];
+
+    const normalizedRoot = pathSegments[0]?.toLowerCase();
+    if (pathSegments.length < 2 || forbiddenRoots.includes(cleanPath.toLowerCase()) || forbiddenRoots.includes(cleanPath.replace(/\/+$/, '').toLowerCase())) {
+        console.warn(`[SECURITY] Blocked attempt to delete root or top-level directory: "${cleanPath}" by uid=${request.auth.uid}`);
+        throw new functions.https.HttpsError('permission-denied', `Deletion of root directory "${cleanPath}" is strictly forbidden.`);
+    }
+
     const uid = request.auth.uid;
     const db = admin.firestore();
 
@@ -2239,6 +2305,11 @@ exports.deleteStoragePath = secureOnCall(async (request) => {
         if (userSnap.exists || staffSnap.exists || staffAccSnap.exists) {
             const staffDoc = (staffAccSnap.exists ? staffAccSnap.data() : (staffSnap.exists ? staffSnap.data() : userSnap.data())) || {};
             if (staffDoc.isDisabled !== true && staffDoc.isActive !== false && staffDoc.status !== 'relieved' && staffDoc.status !== 'terminated') {
+                const isSuperAdmin = staffDoc.roleId === 'role-super-admin' || staffDoc.type === 'Admin';
+                // If deleting an entire employee directory (e.g. employees/{empId}), require SuperAdmin
+                if (isFolder && pathSegments[0] === 'employees' && pathSegments.length === 2 && !isSuperAdmin) {
+                    throw new functions.https.HttpsError('permission-denied', 'Only SuperAdmin can delete an entire employee directory.');
+                }
                 isAuthorized = true;
             }
         }
@@ -4079,7 +4150,11 @@ exports.verifyCorrectionIdentity = secureOnCall(async (request) => {
     const crypto = require('crypto');
     const timestamp = Date.now();
     const sessionPayload = `${cleanToken}:${timestamp}:${data.targetId}`;
-    const hmacSecret = process.env.CORRECTION_HMAC_SECRET || 'UDF_CORRECTION_SESSION_KEY_2026_@DELTA';
+    const hmacSecret = process.env.CORRECTION_HMAC_SECRET;
+    if (!hmacSecret) {
+        console.error('[SECURITY FATAL] CORRECTION_HMAC_SECRET environment variable is missing.');
+        throw new functions.https.HttpsError('internal', 'Server security configuration error.');
+    }
     const sessionToken = crypto.createHmac('sha256', hmacSecret).update(sessionPayload).digest('hex') + `.${timestamp}`;
 
     // Store active session token on doc for validation
@@ -4158,7 +4233,11 @@ exports.submitCorrectionServer = secureOnCall(async (request) => {
         const timestamp = parseInt(tsStr, 10);
         if (tokenHash && !isNaN(timestamp) && (Date.now() - timestamp <= 2 * 60 * 60 * 1000)) {
             const expectedPayload = `${cleanToken}:${timestamp}:${reqData.targetId}`;
-            const hmacSecret = process.env.CORRECTION_HMAC_SECRET || 'UDF_CORRECTION_SESSION_KEY_2026_@DELTA';
+            const hmacSecret = process.env.CORRECTION_HMAC_SECRET;
+    if (!hmacSecret) {
+        console.error('[SECURITY FATAL] CORRECTION_HMAC_SECRET environment variable is missing.');
+        throw new functions.https.HttpsError('internal', 'Server security configuration error.');
+    }
             const expectedHash = crypto.createHmac('sha256', hmacSecret).update(expectedPayload).digest('hex');
             if (tokenHash === expectedHash) {
                 isAuthorized = true;
@@ -5621,8 +5700,15 @@ exports.logClientAuditEvent = secureOnCall(async (request) => {
 
     const uid = request.auth.uid;
     const token = request.auth.token || {};
+
+    // SEC-12: Only verified staff and admins can write to corporate audit logs
+    const isStaffOrAdmin = token.isAdmin || token.isSuperAdmin || (token.roleId && token.roleId !== 'none' && token.roleId !== 'role-security-guard');
+    if (!isStaffOrAdmin) {
+        throw new functions.https.HttpsError('permission-denied', 'Only staff and administrators can record audit log events.');
+    }
+
     const actorName = token.name || token.email || 'Staff';
-    const actorRole = token.roleId || 'Staff';
+    const actorRole = token.roleId || (token.isSuperAdmin ? 'SuperAdmin' : 'Staff');
 
     // Extract client IP and user agent
     const rawReq = request.rawRequest || {};
@@ -5664,7 +5750,8 @@ exports.completeTrainingQuizServer = secureOnCall(async (request) => {
     }
 
     const db = admin.firestore();
-    const today = quizDate || new Date().toISOString().split('T')[0];
+    // SEC-10: Pinned strictly to server date to prevent past/future point farming
+    const today = new Date().toISOString().split('T')[0];
 
     // 1. Rate-limit / Duplicate check: Has this user already completed today's quiz?
     const existingLogSnap = await db.collection('gamification_logs')
@@ -6249,6 +6336,25 @@ exports.syncEmployeeToGoogleDriveServer = secureOnCall({ timeoutSeconds: 300, me
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to sync Drive files.');
     }
 
+    // SEC-13: Only SuperAdmin can trigger heavy Google Drive sync
+    const callerClaims = request.auth.token || {};
+    let isSuperAdmin = callerClaims.isSuperAdmin === true || callerClaims.roleId === 'role-super-admin';
+    if (!isSuperAdmin) {
+        const db = admin.firestore();
+        const [uSnap, sSnap] = await Promise.all([
+            db.collection('users').doc(request.auth.uid).get(),
+            db.collection('staff_accounts').doc(request.auth.uid).get()
+        ]);
+        const prof = (sSnap.exists ? sSnap.data() : (uSnap.exists ? uSnap.data() : null)) || {};
+        if (prof.roleId === 'role-super-admin' || prof.type === 'Admin' || (Array.isArray(prof.roles) && prof.roles.includes('super-admin'))) {
+            isSuperAdmin = true;
+        }
+    }
+
+    if (!isSuperAdmin) {
+        throw new functions.https.HttpsError('permission-denied', 'Only SuperAdmin can trigger Google Drive file synchronization.');
+    }
+
     const { recordId, targetType } = request.data || {};
     if (!recordId) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing recordId.');
@@ -6266,6 +6372,25 @@ exports.syncEmployeeToGoogleDriveServer = secureOnCall({ timeoutSeconds: 300, me
 exports.syncSubmissionToSheetsServer = secureOnCall({ timeoutSeconds: 120 }, async (request) => {
     if (!request.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to sync submission.');
+    }
+
+    // SEC-13: Only SuperAdmin can trigger Google Sheets sync
+    const callerClaims = request.auth.token || {};
+    let isSuperAdmin = callerClaims.isSuperAdmin === true || callerClaims.roleId === 'role-super-admin';
+    if (!isSuperAdmin) {
+        const db = admin.firestore();
+        const [uSnap, sSnap] = await Promise.all([
+            db.collection('users').doc(request.auth.uid).get(),
+            db.collection('staff_accounts').doc(request.auth.uid).get()
+        ]);
+        const prof = (sSnap.exists ? sSnap.data() : (uSnap.exists ? uSnap.data() : null)) || {};
+        if (prof.roleId === 'role-super-admin' || prof.type === 'Admin' || (Array.isArray(prof.roles) && prof.roles.includes('super-admin'))) {
+            isSuperAdmin = true;
+        }
+    }
+
+    if (!isSuperAdmin) {
+        throw new functions.https.HttpsError('permission-denied', 'Only SuperAdmin can trigger Google Sheets synchronization.');
     }
 
     const { submissionId } = request.data || {};
@@ -6296,3 +6421,80 @@ exports.syncSubmissionToSheetsServer = secureOnCall({ timeoutSeconds: 120 }, asy
         throw new functions.https.HttpsError('internal', err.message || 'Sheets sync failed');
     }
 });
+
+/**
+ * SEC-05: Rate-limited draft submission retrieval with 24-hour IP ban on brute-force attempts.
+ */
+exports.getDraftSubmissionSecure = secureOnCall(async (request) => {
+    const rawIp = (request.rawRequest && (
+        request.rawRequest.headers['cf-connecting-ip'] || 
+        request.rawRequest.headers['x-forwarded-for'] || 
+        request.rawRequest.ip
+    )) || 'unknown_ip';
+
+    const clientIp = String(rawIp).split(',')[0].trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const db = admin.firestore();
+    const now = Date.now();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    const blockRef = db.collection('ip_rate_limits').doc(clientIp);
+    const blockSnap = await blockRef.get();
+
+    if (blockSnap.exists) {
+        const blockData = blockSnap.data() || {};
+        if (blockData.blockedUntil && blockData.blockedUntil > now) {
+            const hoursLeft = Math.ceil((blockData.blockedUntil - now) / (60 * 60 * 1000));
+            console.warn(`[SECURITY] Blocked IP ${clientIp} attempted to access draft while banned.`);
+            throw new functions.https.HttpsError(
+                'resource-exhausted',
+                `Access temporarily denied. This IP address is blocked for ${hoursLeft} more hour(s) due to repeated invalid draft attempts.`
+            );
+        }
+    }
+
+    const { draftId } = request.data || {};
+    if (!draftId || typeof draftId !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'draftId is required.');
+    }
+
+    const cleanId = draftId.trim();
+    let docSnap = await db.collection('draft_submissions').doc(cleanId).get();
+    if (!docSnap.exists && cleanId.toUpperCase() !== cleanId) {
+        docSnap = await db.collection('draft_submissions').doc(cleanId.toUpperCase()).get();
+    }
+
+    if (!docSnap.exists) {
+        const previousAttempts = (blockSnap.exists ? (blockSnap.data().failedAttempts || 0) : 0);
+        const failedAttempts = previousAttempts + 1;
+
+        if (failedAttempts >= 5) {
+            await blockRef.set({
+                clientIp,
+                failedAttempts,
+                blockedUntil: now + ONE_DAY_MS,
+                lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+                reason: 'Brute-force draft guessing'
+            });
+            console.warn(`[SECURITY] IP ${clientIp} BANNED for 24 hours after ${failedAttempts} failed draft lookups.`);
+            throw new functions.https.HttpsError(
+                'resource-exhausted',
+                'Too many invalid attempts. Your IP address has been blocked for 24 hours.'
+            );
+        } else {
+            await blockRef.set({
+                clientIp,
+                failedAttempts,
+                lastAttemptAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            throw new functions.https.HttpsError('not-found', `Draft not found. (Attempt ${failedAttempts} of 5)`);
+        }
+    }
+
+    // Success - clear any previous failed attempt counter
+    if (blockSnap.exists && blockSnap.data().failedAttempts > 0) {
+        await blockRef.delete().catch(() => {});
+    }
+
+    return { id: docSnap.id, data: docSnap.data() };
+});
+

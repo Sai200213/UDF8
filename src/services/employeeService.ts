@@ -121,10 +121,24 @@ export const subscribeToDrafts = (onUpdate: (drafts: DraftSubmission[]) => void)
 };
 
 export const getFormDraft = async (draftId: string) => {
-    const user = await ensureAuthenticated();
     const cleanId = (draftId || '').trim();
     if (!cleanId) return null;
 
+    // SEC-05: Rate-limited Cloud Function retrieval with 24-hour IP ban on brute force guessing
+    try {
+        const getDraftFn = httpsCallable<{ draftId: string }, { id: string; data: any }>(functions, 'getDraftSubmissionSecure');
+        const res = await getDraftFn({ draftId: cleanId });
+        if (res.data && res.data.data) {
+            return { id: res.data.id, ...res.data.data };
+        }
+    } catch (fnErr: any) {
+        if (fnErr?.message?.includes('blocked for') || fnErr?.code === 'resource-exhausted') {
+            throw new Error(fnErr.message || 'Access blocked for 24 hours due to too many failed attempts.');
+        }
+        console.warn('[getFormDraft] Secure function lookup fallback:', fnErr?.message);
+    }
+
+    const user = await ensureAuthenticated();
     const draftRef = doc(db, DRAFTS_COLLECTION, cleanId);
     let snap = await getDoc(draftRef);
 

@@ -5,9 +5,20 @@ import { initializeFirestore, setLogLevel } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
+// Detect the active subdomain dynamically so auth popups stay on the user's current portal (100% native branded auth)
+const getDynamicAuthDomain = (): string => {
+    if (typeof window !== 'undefined') {
+        const host = window.location.hostname;
+        if (host === 'udfonline.in' || host.endsWith('.udfonline.in')) {
+            return host; // Returns 'admin.udfonline.in', 'employee.udfonline.in', or 'udfonline.in'
+        }
+    }
+    return import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim() || 'udfonline.in';
+};
+
 const firebaseConfig = {
     apiKey:            import.meta.env.VITE_FIREBASE_API_KEY?.trim(),
-    authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim(),
+    authDomain:        getDynamicAuthDomain(),
     projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim(),
     storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET?.trim(),
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID?.trim(),

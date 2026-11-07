@@ -588,8 +588,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, [user, authLoading]);
 
-    // 1b. Public Metadata Subscriptions (Sites, Form Sections, Portal Config, Leave Policy, Workflows, Editable Fields)
-    // These documents are under /settings/{docId} which are publicly readable (allow read: if true;).
+    // 1b. Public Metadata Subscriptions (Sites, Form Sections, Portal Config)
+    // These documents are under /settings/{docId} which are publicly readable.
     // They must be loaded on mount so onboarding, guest applicants, and public visitors receive real Firestore configuration.
     useEffect(() => {
         log.log('[DataContext] Subscribing to public structural data (sites, sections, portalConfig)...');
@@ -609,6 +609,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setPortalConfig(cfg);
         });
 
+        return () => {
+            log.log('[DataContext] Cleaning up public structural subscriptions...');
+            unsubSites();
+            unsubSections();
+            unsubPortalConfig();
+        };
+    }, []);
+
+    // 1c. Authenticated Internal Settings Subscriptions (Leave Policy, Workflows, Editable Fields)
+    // Protected by Firestore rules (allow read: if isAuthenticated()); subscribed only when a user is signed in
+    // to prevent unauthenticated 'permission-denied' console errors on login and landing pages.
+    useEffect(() => {
+        if (authLoading || !user) {
+            setLeavePolicy(null);
+            setWorkflowConfigs([]);
+            setEditableFieldIds([]);
+            return;
+        }
+
+        log.log('[DataContext] User authenticated, subscribing to internal settings (leave policy, workflows, editable fields)...');
         const unsubLeavePolicy = subscribeToLeavePolicy((pol) => {
             log.log(`[DataContext] Received leave policy`);
             setLeavePolicy(pol);
@@ -625,15 +645,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
 
         return () => {
-            log.log('[DataContext] Cleaning up public structural subscriptions...');
-            unsubSites();
-            unsubSections();
-            unsubPortalConfig();
+            log.log('[DataContext] Cleaning up authenticated settings subscriptions...');
             unsubLeavePolicy();
             unsubWorkflows();
             unsubEditableFields();
         };
-    }, []);
+    }, [user, authLoading]);
 
     // 2. Permission-Guarded Admin Subscriptions (Depends on roles, refreshes when roles load)
     useEffect(() => {

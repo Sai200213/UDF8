@@ -30,7 +30,7 @@ import { getApplicantName } from './utils/formDataHelper';
 import Button from './components/common/Button';
 import Input from './components/common/Input';
 import Modal from './components/common/Modal';
-import { ArrowLeft, ShieldAlert, ChevronRight, RotateCcw, Trash2, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, ChevronRight, RotateCcw, Trash2, Loader2, Lock, ShieldCheck, Clock } from 'lucide-react';
 import { useFormBuilder } from './hooks/useFormBuilder';
 import {
   defaultRoles,
@@ -229,6 +229,7 @@ const App: React.FC = () => {
 
   // Get auth state from AuthContext
   const { user: authUser, loading: authLoading, setUser: setAuthUser } = useAuth();
+  const [sessionExpiredInfo, setSessionExpiredInfo] = useState<{ isOpen: boolean; minutes: number } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -916,26 +917,33 @@ const App: React.FC = () => {
   }, [navigate]);
 
   const handleLogout = useCallback(async () => {
+    const userSnapshot = authUser;
+
+    // 1. Synchronously purge all local state and tokens (0ms delay)
+    localStorage.removeItem('portalType');
+    localStorage.removeItem('udf_user_last_active');
     try {
-      if (authUser) {
-        await logSystemAction('LOGOUT', 'AUTH', `User logged out: ${authUser.name}`);
+      sessionStorage.removeItem('activeAdminView');
+      sessionStorage.removeItem('activeEmployeeView');
+      sessionStorage.removeItem('adminInvitesActiveTab');
+    } catch (e) {}
+
+    // Immediately evict user from React state so protected pages unmount right away
+    setAuthUser(null);
+    setCurrentView(AppView.LANDING);
+    navigateTo(AppView.LANDING);
+
+    // 2. Perform server-side audit logging and Firebase sign-out in the background
+    try {
+      if (userSnapshot) {
+        logSystemAction('LOGOUT', 'AUTH', `User logged out: ${userSnapshot.name}`).catch(() => {});
       }
       const { logoutUser } = await import('./src/services/authService');
       await logoutUser();
-      localStorage.removeItem('portalType'); // Clear the scope hint
-      localStorage.removeItem('udf_user_last_active');
-      try {
-        sessionStorage.removeItem('activeAdminView');
-        sessionStorage.removeItem('activeEmployeeView');
-        sessionStorage.removeItem('adminInvitesActiveTab');
-      } catch (e) {}
-      setAuthUser(null);
-      setCurrentView(AppView.LANDING);
-      navigateTo(AppView.LANDING);
     } catch (err: any) {
-      log.error("Logout error", err);
+      log.error("Background logout error", err);
     }
-  }, [authUser, logSystemAction, navigateTo]);
+  }, [authUser, logSystemAction, navigateTo, setAuthUser]);
 
   // ─── Universal Inactivity Auto-Logout (60 Min for Admin, 120 Min for Employee) ───
   useEffect(() => {
@@ -947,14 +955,17 @@ const App: React.FC = () => {
     const ADMIN_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
     const EMPLOYEE_TIMEOUT_MS = 120 * 60 * 1000; // 2 hours
     const timeoutDuration = authUser.type === UserType.ADMIN ? ADMIN_TIMEOUT_MS : EMPLOYEE_TIMEOUT_MS;
+    const timeoutMinutes = authUser.type === UserType.ADMIN ? 60 : 120;
 
     // Initialize or touch timestamp on login / active state
     if (!localStorage.getItem('udf_user_last_active')) {
       localStorage.setItem('udf_user_last_active', Date.now().toString());
     }
 
+    let isTimedOut = false;
     let lastThrottledTouch = 0;
     const touchActivity = () => {
+      if (isTimedOut) return;
       const now = Date.now();
       // Throttle localStorage writes to at most once every 10 seconds
       if (now - lastThrottledTouch > 10000) {
@@ -969,17 +980,49 @@ const App: React.FC = () => {
     window.addEventListener('scroll', touchActivity, { passive: true });
 
     const checker = setInterval(() => {
+      if (isTimedOut) return;
       const raw = localStorage.getItem('udf_user_last_active');
       if (raw) {
         const lastActive = parseInt(raw, 10);
         if (!isNaN(lastActive) && (Date.now() - lastActive) >= timeoutDuration) {
-          log.warn(`[InactivityTimeout] User ${authUser.name} (${authUser.type}) timed out due to inactivity.`);
+          isTimedOut = true;
+          log.warn(`[InactivityTimeout] User ${authUser.name} (${authUser.type}) timed out due to ${timeoutMinutes}m inactivity.`);
+
+          // 1. Immediately detach listeners so interactions cannot revive the session
+          window.removeEventListener('keydown', touchActivity);
+          window.removeEventListener('click', touchActivity);
+          window.removeEventListener('touchstart', touchActivity);
+          window.removeEventListener('scroll', touchActivity);
+          clearInterval(checker);
+
+          // 2. Synchronously wipe all credentials and session caches
           localStorage.removeItem('udf_user_last_active');
-          handleLogout();
-          alert(`Your session has expired due to ${authUser.type === UserType.ADMIN ? '60' : '120'} minutes of inactivity. Please sign in again.`);
+          localStorage.removeItem('portalType');
+          try {
+            sessionStorage.removeItem('activeAdminView');
+            sessionStorage.removeItem('activeEmployeeView');
+            sessionStorage.removeItem('adminInvitesActiveTab');
+          } catch (e) {}
+
+          const timedOutUser = authUser;
+
+          // 3. Instantly evict user from React state — protected UI components unmount immediately
+          setAuthUser(null);
+          setCurrentView(AppView.LANDING);
+
+          // 4. Background Firebase signOut and audit logging
+          import('./src/services/authService').then(({ logoutUser }) => {
+            logoutUser().catch(() => {});
+          }).catch(() => {});
+          if (timedOutUser) {
+            logSystemAction('LOGOUT', 'AUTH', `User ${timedOutUser.name} session expired due to ${timeoutMinutes}m inactivity`).catch(() => {});
+          }
+
+          // 5. Instantly display full-screen blocking modal overlay (zero interaction permitted underneath)
+          setSessionExpiredInfo({ isOpen: true, minutes: timeoutMinutes });
         }
       }
-    }, 30 * 1000); // Check every 30 seconds
+    }, 10 * 1000); // Check every 10 seconds
 
     return () => {
       window.removeEventListener('keydown', touchActivity);
@@ -988,7 +1031,7 @@ const App: React.FC = () => {
       window.removeEventListener('scroll', touchActivity);
       clearInterval(checker);
     };
-  }, [authUser, handleLogout]);
+  }, [authUser, logSystemAction, setAuthUser]);
 
 
 
@@ -2518,6 +2561,33 @@ const App: React.FC = () => {
         employeeProps={employeeProps}
       />
       <CookieConsent />
+
+      {/* Universal Session Expired Modal Overlay */}
+      {sessionExpiredInfo?.isOpen && (
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-gray-100 transform animate-in zoom-in-95 duration-200">
+            <div className="mx-auto w-16 h-16 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center text-amber-600 mb-4 shadow-sm">
+              <Clock className="w-8 h-8 stroke-[2.2]" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Session Expired</h3>
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              Your session has ended due to <span className="font-semibold text-gray-900">{sessionExpiredInfo.minutes} minutes</span> of inactivity. For your security, you have been automatically signed out.
+            </p>
+            <button
+              onClick={() => {
+                setSessionExpiredInfo(null);
+                const appTarget = (import.meta as any).env?.VITE_APP_TARGET;
+                const loginPath = appTarget === 'admin' ? '/admin/login' : '/login';
+                window.location.href = window.location.origin + loginPath;
+              }}
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-150 transform active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Lock className="w-4 h-4" />
+              <span>Sign In Again</span>
+            </button>
+          </div>
+        </div>
+      )}
       {deletionSummary && (
         <Modal
           isOpen={!!deletionSummary}
